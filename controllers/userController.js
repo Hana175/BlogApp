@@ -2,6 +2,7 @@ const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
 console.log(User); // This should not log 'undefined'
 const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
 
 //@desc Register user
 //@route POST /users/create
@@ -69,24 +70,30 @@ const updateUser = async (req, res) => {
   }
 };
 
+const loggedUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
 
-const loggedUser = async (req, res) => {
-  const user = await User.findOne({email});
   if (!user) {
     res.status(404).json({ message: "User not found" });
   }
-  if(user && bcrypt.compare(password, user.password)){
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (user && isMatch) {
     const accessToken = jwt.sign(
-      { name:user.name, email: user.email, id: user._id },
+      { name: user.name, email: user.email, _id: user._id },
       process.env.JWT_SECRET,
-      {expiresIn: process.env.ACCESS_TOKEN_LIFE}
+      { expiresIn: process.env.ACCESS_TOKEN_LIFE }
     );
-    res.status(200).json({accessToken: accessToken});
-    res.json({ message: `Welcome, ${user.name}` });
-  } else{
+    res.status(200).json({
+      accessToken: accessToken,
+      message: `Welcome, ${user.name}`,
+    });
+  } else {
     res.status(401).json({ message: "Invalid credentials" });
   }
-};
+});
 
 module.exports = {
   updateUser,
